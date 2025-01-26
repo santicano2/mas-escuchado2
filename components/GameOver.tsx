@@ -1,4 +1,3 @@
-// Componente de Game Over
 const GameOverScreen: React.FC<{
   score: number;
   onRestart: () => void;

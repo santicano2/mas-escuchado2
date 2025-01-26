@@ -10,8 +10,8 @@ import GameModeSelector from "./MainMenu";
 // Componente Principal
 const SpotifyGame: React.FC = () => {
   const [gameMode, setGameMode] = useState<GameMode | null>(null);
-  const [gameOver, setGameOver] = useState<boolean>(false);
-  const [finalScore, setFinalScore] = useState<number>(0);
+  const [gameOver, setGameOver] = useState(false);
+  const [finalScore, setFinalScore] = useState(0);
 
   const handleGameOver = (score: number) => {
     setFinalScore(score);

@@ -3,58 +3,91 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 
+import { getSpotifyToken, searchSpotifyTracks } from "@/lib/spotify";
 import { GameMode } from "@/lib/types";
+import { fetchTracksWithViews } from "@/lib/youtube";
 
 interface Track {
   name: string;
   artist: string;
-  streams: number;
+  views: number;
   image: string;
+  youtubeId: string;
 }
 
-// Componente de Juego Principal
 const GamePlay: React.FC<{
   mode: GameMode;
   onGameOver: (score: number) => void;
 }> = ({ mode, onGameOver }) => {
-  const [score, setScore] = useState<number>(0);
   const [tracks, setTracks] = useState<Track[]>([]);
   const [currentTracks, setCurrentTracks] = useState<Track[]>([]);
+  const [score, setScore] = useState(0);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // TODO: Implementar lógica de fetch de canciones según el modo
-    const mockTracks: Track[] = [
-      {
-        name: "Canción 1",
-        artist: "Artista 1",
-        streams: 1000000,
-        image: "/placeholder-1.jpg",
-      },
-      {
-        name: "Canción 2",
-        artist: "Artista 2",
-        streams: 500000,
-        image: "/placeholder-2.jpg",
-      },
-    ];
-    setTracks(mockTracks);
-    setCurrentTracks(mockTracks.slice(0, 2));
+    const loadTracks = async () => {
+      try {
+        setLoading(true);
+        const token = await getSpotifyToken();
+        const spotifyTracks = await searchSpotifyTracks(mode, token);
+        const tracksWithViews = await fetchTracksWithViews(spotifyTracks);
+
+        setTracks(tracksWithViews);
+
+        const initialTracks = tracksWithViews
+          .sort(() => 0.5 - Math.random())
+          .slice(0, 2);
+
+        setCurrentTracks(initialTracks);
+        setLoading(false);
+      } catch (error) {
+        console.error("Error loading tracks:", error);
+        onGameOver(0);
+      }
+    };
+
+    loadTracks();
   }, [mode]);
 
   const checkAnswer = (guess: "higher" | "lower") => {
     const [first, second] = currentTracks;
     const isCorrect =
       guess === "higher"
-        ? second.streams > first.streams
-        : second.streams < first.streams;
+        ? second.views > first.views
+        : second.views < first.views;
 
     if (isCorrect) {
       setScore((prevScore) => prevScore + 1);
-      // TODO: Cargar siguiente track
+
+      // Select next tracks
+      const remainingTracks = tracks.filter(
+        (track) =>
+          track.youtubeId !== first.youtubeId &&
+          track.youtubeId !== second.youtubeId
+      );
+
+      if (remainingTracks.length < 2) {
+        onGameOver(score + 1);
+        return;
+      }
+
+      const nextTracks = remainingTracks
+        .sort(() => 0.5 - Math.random())
+        .slice(0, 2);
+
+      setCurrentTracks(nextTracks);
     } else {
       onGameOver(score);
     }
   };
+
+  if (loading) {
+    return (
+      <div className="bg-black text-white min-h-screen flex justify-center items-center">
+        <p className="text-2xl">Cargando...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-black text-white min-h-screen flex flex-col justify-center items-center">
@@ -77,6 +110,9 @@ const GamePlay: React.FC<{
             />
             <h3 className="text-xl">{track.name}</h3>
             <p className="text-gray-400">{track.artist}</p>
+            <p className="text-sm text-gray-500">
+              {track.views.toLocaleString()} views
+            </p>
           </motion.div>
         ))}
       </div>
